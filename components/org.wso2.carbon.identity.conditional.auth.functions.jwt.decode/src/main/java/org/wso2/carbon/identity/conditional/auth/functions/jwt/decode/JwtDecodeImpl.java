@@ -70,55 +70,27 @@ public class JwtDecodeImpl implements JwtDecode {
 
     public JSONObject getDecodedAssertion(String encodedAssertion, boolean isParameterInPayload) throws ParseException {
 
-        JWSObject plainObject;
-        Map<String, Object> resultMap;
-
-        plainObject = JWSObject.parse(encodedAssertion);
-        if (isParameterInPayload) {
-            resultMap = plainObject.getPayload().toJSONObject();
-        } else {
-            resultMap = plainObject.getHeader().toJSONObject();
-        }
+        JWSObject plainObject = JWSObject.parse(encodedAssertion);
+        Map<String, Object> resultMap = isParameterInPayload
+                ? plainObject.getPayload().toJSONObject()
+                : plainObject.getHeader().toJSONObject();
         if (resultMap == null) {
             return null;
         }
-        JSONObject jsonObject = new JSONObject(resultMap);
-        recursivelyConvertToJSONObject(jsonObject);
-        return jsonObject;
-    }
-
-    private void recursivelyConvertToJSONObject(JSONObject jsonObject) {
-
-        for (String key : jsonObject.keySet()) {
-            Object value = jsonObject.get(key);
+        JSONObject jsonObject = new JSONObject();
+        for (Map.Entry<String, Object> entry : resultMap.entrySet()) {
+            Object value = entry.getValue();
             if (value instanceof Map) {
-                JSONObject child = new JSONObject((Map<String, Object>) value);
-                recursivelyConvertToJSONObject(child);
-                jsonObject.put(key, child);
+                jsonObject.put(entry.getKey(), new JSONObject((Map<String, Object>) value));
             } else if (value instanceof List) {
                 JSONArray jsonArray = new JSONArray();
                 jsonArray.addAll((List<?>) value);
-                recursivelyConvertToJSONArray(jsonArray);
-                jsonObject.put(key, jsonArray);
+                jsonObject.put(entry.getKey(), jsonArray);
+            } else {
+                jsonObject.put(entry.getKey(), value);
             }
         }
+        return jsonObject;
     }
-
-    private void recursivelyConvertToJSONArray(JSONArray jsonArray) {
-
-        for (int i = 0; i < jsonArray.size(); i++) {
-            Object element = jsonArray.get(i);
-            if (element instanceof Map) {
-                JSONObject child = new JSONObject((Map<String, Object>) element);
-                recursivelyConvertToJSONObject(child);
-                jsonArray.set(i, child);
-            } else if (element instanceof List) {
-                JSONArray childArray = new JSONArray();
-                childArray.addAll((List<?>) element);
-                recursivelyConvertToJSONArray(childArray);
-                jsonArray.set(i, childArray);
-            }
-        }
-    }
-
+    
 }
